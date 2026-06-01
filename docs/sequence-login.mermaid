@@ -1,0 +1,23 @@
+sequenceDiagram
+    participant U as 用户浏览器
+    participant R as React (LoginPage)
+    participant A as Express (/api/auth/login)
+    participant DB as SQLite (users)
+    participant Auth as AuthService
+
+    U->>R: 输入用户名密码，点击登录
+    R->>A: POST /api/auth/login {username, password}
+    A->>DB: SELECT * FROM users WHERE username = ?
+    DB-->>A: user record (含 password_hash)
+    A->>Auth: verifyPassword(password, password_hash)
+    Auth-->>A: true/false
+    alt 密码正确
+        A->>Auth: signToken({id, username, role})
+        Auth-->>A: jwt token string
+        A-->>R: Set-Cookie: token=<jwt>; HttpOnly + {user}
+        R->>R: AuthContext.setUser(user)
+        R->>R: navigate('/')
+    else 密码错误
+        A-->>R: 401 {error: "用户名或密码错误"}
+        R->>R: 显示错误提示
+    end

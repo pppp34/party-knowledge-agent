@@ -1,0 +1,22 @@
+sequenceDiagram
+    participant A as 管理员浏览器
+    participant R as React (AdminConversations)
+    participant E as Express (/api/admin/conversations)
+    participant AM as adminMiddleware
+    participant DB as SQLite
+
+    A->>R: 打开管理后台 → 对话查询页
+    R->>E: GET /api/admin/conversations?userId=xxx&startDate=xxx&keyword=党章&page=1
+    
+    E->>AM: 验证JWT + 检查role ∈ [branch_admin, system_admin]
+    alt 非管理员
+        AM-->>R: 403 {error: "无权限"}
+    else 是管理员
+        AM-->>E: next()
+        E->>DB: SELECT s.*, u.display_name, COUNT(m.id) FROM sessions s LEFT JOIN messages m LEFT JOIN users u WHERE [动态条件] GROUP BY s.id ORDER BY s.updated_at DESC LIMIT ? OFFSET ?
+        DB-->>E: conversation list with pagination
+        E->>DB: SELECT COUNT(*) FROM sessions WHERE [动态条件]
+        DB-->>E: total count
+        E-->>R: {total, page, pageSize, conversations: [...]}
+        R->>R: 渲染对话列表 + 分页控件
+    end

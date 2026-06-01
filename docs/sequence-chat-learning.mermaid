@@ -1,0 +1,37 @@
+sequenceDiagram
+    participant U as 用户浏览器
+    participant R as React (useChat)
+    participant E as Express (/api/chat)
+    participant SDK as Agent SDK
+    participant LS as LearningService
+    participant DB as SQLite
+
+    U->>R: 输入问题，点击发送
+    R->>E: POST /api/chat {sessionId, message, ...}
+    
+    Note over E: authMiddleware 验证JWT，注入 req.user
+    E->>E: 解析 req.user.id
+    E->>DB: 保存用户消息到 messages
+    E->>LS: recordSessionStart(userId, sessionId) [如果新会话]
+    LS->>DB: INSERT learning_records (action_type='session_start')
+    E->>SDK: query({prompt, options})
+    
+    loop SSE 流式响应
+        SDK-->>E: stream message chunks
+        E-->>R: SSE: data: {type: "text", content: "..."}
+    end
+    
+    SDK-->>E: stream done
+    E->>DB: 保存助手消息到 messages
+    
+    par 异步学习记录（不阻塞响应）
+        E->>LS: recordChatMessage(userId, sessionId, message)
+        LS->>DB: INSERT learning_records (action_type='chat_message')
+        LS->>LS: extractKeyword(message) → 提取查询关键词
+        LS->>DB: INSERT learning_records (action_type='query_keyword')
+    end
+    
+    E-->>R: SSE: data: {type: "done", duration, cost}
+    
+    R->>R: 更新UI，显示完整回复
+    R->>E: GET /api/learning/my-stats [可选，刷新学习统计]

@@ -1,0 +1,76 @@
+classDiagram
+    class User {
+        +string id
+        +string username
+        +string password_hash
+        +string display_name
+        +string role
+        +string created_at
+        +string updated_at
+    }
+
+    class Session {
+        +string id
+        +string title
+        +string model
+        +string sdk_session_id
+        +string user_id
+        +string created_at
+        +string updated_at
+    }
+
+    class Message {
+        +string id
+        +string session_id
+        +string role
+        +string content
+        +string model
+        +string created_at
+        +string tool_calls
+    }
+
+    class LearningRecord {
+        +string id
+        +string user_id
+        +string session_id
+        +string action_type
+        +string action_detail
+        +number duration_seconds
+        +string created_at
+    }
+
+    User "1" --> "*" Session : owns
+    User "1" --> "*" LearningRecord : generates
+    Session "1" --> "*" Message : contains
+    Session "1" --> "*" LearningRecord : tracks
+
+    class AuthService {
+        +hashPassword(password: string) string
+        +verifyPassword(password: string, hash: string) boolean
+        +signToken(user: User) string
+        +verifyToken(token: string) JwtPayload
+        +authMiddleware(req, res, next) void
+        +adminMiddleware(req, res, next) void
+    }
+
+    class LearningService {
+        +recordChatMessage(userId: string, sessionId: string, content: string) void
+        +recordSessionStart(userId: string, sessionId: string) void
+        +recordSessionEnd(userId: string, sessionId: string, duration: number) void
+        +getUserStats(userId: string) UserLearningStats
+        +getUserHistory(userId: string, limit: number) LearningRecord[]
+    }
+
+    class AdminService {
+        +queryConversations(filters: ConversationQuery) ConversationResult
+        +getLearningStats(filters: StatQuery) LearningStats
+        +listUsers() User[]
+        +getSystemOverview() SystemOverview
+    }
+
+    AuthService --> User : authenticates
+    LearningService --> LearningRecord : creates/reads
+    LearningService --> User : references
+    AdminService --> User : manages
+    AdminService --> Session : queries
+    AdminService --> LearningRecord : aggregates

@@ -131,9 +131,6 @@ export function LoginPage() {
                   登录
                 </Button>
               </Form>
-              <div style={{ marginTop: 16, fontSize: 12, color: 'var(--td-text-color-placeholder)', textAlign: 'center' }}>
-                默认管理员: admin / admin123
-              </div>
             </div>
           </Tabs.TabPanel>
           <Tabs.TabPanel value="register" label="注册">

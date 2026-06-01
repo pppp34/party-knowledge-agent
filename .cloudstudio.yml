@@ -1,0 +1,6 @@
+# CloudStudio Deployment Config
+type: node
+runtime: node22
+install: npm install && npm run build
+start: npm start
+port: 3000

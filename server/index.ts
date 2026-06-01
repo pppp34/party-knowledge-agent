@@ -410,10 +410,14 @@ app.get("/api/models", async (req, res) => {
 // ============= 会话 API =============
 
 // 获取所有会话（包含消息数量）- 支持按用户筛选
-app.get("/api/sessions", (req, res) => {
+app.get("/api/sessions", authMiddleware, (req: AuthenticatedRequest, res) => {
   try {
     const { userId } = req.query;
-    const sessions = userId ? db.getSessionsByUser(userId as string) : db.getAllSessions();
+    // 普通用户只能看自己的会话，管理员可查看所有
+    const isAdmin = req.user && (req.user.role === 'branch_admin' || req.user.role === 'system_admin');
+    const sessions = (userId && isAdmin) ? db.getSessionsByUser(userId as string)
+      : isAdmin ? db.getAllSessions()
+      : db.getSessionsByUser(req.user!.userId);
     const sessionsWithMessages = sessions.map(session => {
       const messages = db.getMessagesBySession(session.id);
       return {
@@ -429,13 +433,19 @@ app.get("/api/sessions", (req, res) => {
 });
 
 // 获取单个会话及其消息
-app.get("/api/sessions/:sessionId", (req, res) => {
+app.get("/api/sessions/:sessionId", authMiddleware, (req: AuthenticatedRequest, res) => {
   try {
     const { sessionId } = req.params;
     const session = db.getSession(sessionId);
     
     if (!session) {
       return res.status(404).json({ error: "会话不存在" });
+    }
+    
+    // 检查权限：普通用户只能看自己的会话
+    const isAdmin = req.user!.role === 'branch_admin' || req.user!.role === 'system_admin';
+    if (!isAdmin && session.user_id && session.user_id !== req.user!.userId) {
+      return res.status(403).json({ error: "无权访问此会话" });
     }
     
     const messages = db.getMessagesBySession(sessionId);
@@ -495,14 +505,19 @@ app.patch("/api/sessions/:sessionId", (req, res) => {
 });
 
 // 删除会话
-app.delete("/api/sessions/:sessionId", (req, res) => {
+app.delete("/api/sessions/:sessionId", authMiddleware, (req: AuthenticatedRequest, res) => {
   try {
     const { sessionId } = req.params;
-    const success = db.deleteSession(sessionId);
-    
-    if (!success) {
+    const session = db.getSession(sessionId);
+    if (!session) {
       return res.status(404).json({ error: "会话不存在" });
     }
+    // 普通用户只能删自己的会话
+    const isAdmin = req.user!.role === 'branch_admin' || req.user!.role === 'system_admin';
+    if (!isAdmin && session.user_id && session.user_id !== req.user!.userId) {
+      return res.status(403).json({ error: "无权删除此会话" });
+    }
+    const success = db.deleteSession(sessionId);
     
     res.json({ success: true });
   } catch (error: any) {

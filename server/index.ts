@@ -442,9 +442,13 @@ app.get("/api/sessions/:sessionId", authMiddleware, (req: AuthenticatedRequest, 
       return res.status(404).json({ error: "会话不存在" });
     }
     
-    // 检查权限：普通用户只能看自己的会话
+    // 检查权限：普通用户只能看自己的会话（user_id 为 null 的旧会话管理员可见）
     const isAdmin = req.user!.role === 'branch_admin' || req.user!.role === 'system_admin';
     if (!isAdmin && session.user_id && session.user_id !== req.user!.userId) {
+      return res.status(403).json({ error: "无权访问此会话" });
+    }
+    // 普通用户不能访问 user_id 为 null 的旧会话
+    if (!isAdmin && !session.user_id) {
       return res.status(403).json({ error: "无权访问此会话" });
     }
     
@@ -513,8 +517,11 @@ app.delete("/api/sessions/:sessionId", authMiddleware, (req: AuthenticatedReques
       return res.status(404).json({ error: "会话不存在" });
     }
     // 普通用户只能删自己的会话
-    const isAdmin = req.user!.role === 'branch_admin' || req.user!.role === 'system_admin';
-    if (!isAdmin && session.user_id && session.user_id !== req.user!.userId) {
+    const isAdmin2 = req.user!.role === 'branch_admin' || req.user!.role === 'system_admin';
+    if (!isAdmin2 && session.user_id && session.user_id !== req.user!.userId) {
+      return res.status(403).json({ error: "无权删除此会话" });
+    }
+    if (!isAdmin2 && !session.user_id) {
       return res.status(403).json({ error: "无权删除此会话" });
     }
     const success = db.deleteSession(sessionId);

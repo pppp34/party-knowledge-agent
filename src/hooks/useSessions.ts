@@ -5,11 +5,15 @@ const STORAGE_KEYS = {
   sessionModels: 'sessionModels',
 };
 
+function getAuthHeaders(): Record<string, string> {
+  const token = localStorage.getItem('party_agent_token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export function useSessions() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   
-  // 每个会话的模型选择缓存
   const [sessionModels, setSessionModels] = useState<Record<string, string>>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.sessionModels);
@@ -19,13 +23,11 @@ export function useSessions() {
     }
   });
 
-  // 获取当前会话
   const currentSession = sessions.find(s => s.id === currentSessionId);
 
-  // 从 API 加载会话列表
   const fetchSessions = useCallback(async () => {
     try {
-      const res = await fetch('/api/sessions');
+      const res = await fetch('/api/sessions', { headers: getAuthHeaders() });
       const data = await res.json();
       
       if (data.sessions) {
@@ -46,7 +48,7 @@ export function useSessions() {
   // 加载单个会话的消息
   const loadSessionMessages = useCallback(async (sessionId: string) => {
     try {
-      const res = await fetch(`/api/sessions/${sessionId}`);
+      const res = await fetch(`/api/sessions/${sessionId}`, { headers: getAuthHeaders() });
       const data = await res.json();
       
       if (data.messages) {
@@ -71,7 +73,7 @@ export function useSessions() {
   // 删除会话
   const deleteSession = useCallback(async (sessionId: string): Promise<string | null> => {
     try {
-      await fetch(`/api/sessions/${sessionId}`, { method: 'DELETE' });
+      await fetch(`/api/sessions/${sessionId}`, { method: 'DELETE', headers: getAuthHeaders() });
       
       let navigateTo: string | null = null;
       

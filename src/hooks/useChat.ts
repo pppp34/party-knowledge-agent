@@ -11,6 +11,7 @@ interface UseChatOptions {
   currentSession: Session | undefined;
   currentSessionId: string | null;
   selectedModel: string;
+  selectedSkill: string;
   getAgent: (id: string) => CustomAgent | undefined;
   addSession: (session: Session) => void;
   updateSession: (sessionId: string, updates: Partial<Session>) => void;
@@ -31,6 +32,7 @@ export function useChat(options: UseChatOptions) {
     currentSession,
     currentSessionId,
     selectedModel,
+    selectedSkill,
     getAgent,
     updateSessionModel,
     setCurrentSessionId,
@@ -144,6 +146,7 @@ export function useChat(options: UseChatOptions) {
           message: messageContent,
           model: selectedModel,
           systemPrompt,
+          skillId: selectedSkill,
           cwd: currentCwd,
           permissionMode: currentPermissionMode,
           userId: user?.id || null,

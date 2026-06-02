@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { DashboardIcon, ChatIcon, BookIcon, UserIcon, RollbackIcon, FolderOpenIcon } from 'tdesign-icons-react';
+import { DashboardIcon, ChatIcon, BookIcon, UserIcon, RollbackIcon, FolderOpenIcon, AppIcon } from 'tdesign-icons-react';
 
 export function AdminSidebar() {
   const navigate = useNavigate();
@@ -12,6 +12,7 @@ export function AdminSidebar() {
     { value: '/admin/learning', label: '学习统计', icon: <BookIcon /> },
     { value: '/admin/users', label: '用户管理', icon: <UserIcon /> },
     { value: '/admin/knowledge', label: '知识库', icon: <FolderOpenIcon /> },
+    { value: '/admin/skills', label: '技能管理', icon: <AppIcon /> },
   ];
 
   const activeMenu = menuItems.find(item => location.pathname === item.value)?.value || '/admin';

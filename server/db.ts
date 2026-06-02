@@ -78,6 +78,18 @@ db.exec(`
     FOREIGN KEY (user_id) REFERENCES users(id)
   );
 
+  -- 技能模板表
+  CREATE TABLE IF NOT EXISTS skills (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    system_prompt TEXT NOT NULL,
+    icon TEXT DEFAULT 'Bot',
+    color TEXT DEFAULT '#0052d9',
+    is_builtin INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+  );
+
   -- 知识库文档表
   CREATE TABLE IF NOT EXISTS knowledge_docs (
     id TEXT PRIMARY KEY,
@@ -663,6 +675,76 @@ export function searchKnowledgeDocs(query: string, limit: number = 5): Array<{
 export function getKnowledgeDocCount(): number {
   const result = db.prepare('SELECT COUNT(*) as count FROM knowledge_docs').get() as any;
   return result?.count || 0;
+}
+
+// ============= 技能模板操作 =============
+
+export interface DbSkill {
+  id: string;
+  name: string;
+  description: string | null;
+  system_prompt: string;
+  icon: string;
+  color: string;
+  is_builtin: number;
+  created_at: string;
+}
+
+// 获取所有技能
+export function getAllSkills(): DbSkill[] {
+  return db.prepare('SELECT * FROM skills ORDER BY is_builtin DESC, created_at DESC').all() as DbSkill[];
+}
+
+// 获取单个技能
+export function getSkill(id: string): DbSkill | undefined {
+  return db.prepare('SELECT * FROM skills WHERE id = ?').get(id) as DbSkill | undefined;
+}
+
+// 创建技能
+export function createSkill(skill: DbSkill): DbSkill {
+  db.prepare('INSERT INTO skills (id, name, description, system_prompt, icon, color, is_builtin, created_at) VALUES (?,?,?,?,?,?,?,?)')
+    .run(skill.id, skill.name, skill.description, skill.system_prompt, skill.icon, skill.color, skill.is_builtin, skill.created_at);
+  return skill;
+}
+
+// 更新技能
+export function updateSkill(id: string, updates: Partial<Pick<DbSkill, 'name'|'description'|'system_prompt'|'icon'|'color'>>): boolean {
+  const fields: string[] = []; const values: any[] = [];
+  if (updates.name !== undefined) { fields.push('name=?'); values.push(updates.name); }
+  if (updates.description !== undefined) { fields.push('description=?'); values.push(updates.description); }
+  if (updates.system_prompt !== undefined) { fields.push('system_prompt=?'); values.push(updates.system_prompt); }
+  if (updates.icon !== undefined) { fields.push('icon=?'); values.push(updates.icon); }
+  if (updates.color !== undefined) { fields.push('color=?'); values.push(updates.color); }
+  if (fields.length===0) return false;
+  values.push(id);
+  return db.prepare(`UPDATE skills SET ${fields.join(',')} WHERE id=?`).run(...values).changes>0;
+}
+
+// 删除技能（仅非内置）
+export function deleteSkill(id: string): boolean {
+  const skill = getSkill(id);
+  if (skill?.is_builtin) return false;
+  return db.prepare('DELETE FROM skills WHERE id=? AND is_builtin=0').run(id).changes>0;
+}
+
+// 初始化预设技能（仅在无技能时）
+export function initPresetSkills(): void {
+  const count = (db.prepare('SELECT COUNT(*) as c FROM skills').get() as any)?.c || 0;
+  if (count > 0) return;
+
+  const now = new Date().toISOString();
+  const presets: DbSkill[] = [
+    { id: 'skill-constitution', name: '党章解读', description: '专注党章党规的解读与分析', system_prompt: '你是党建知识专家，专精于《中国共产党章程》的解读。回答应引用党章原文条款，结合党的最新精神进行分析，语言准确庄重。', icon: 'BookOpen', color: '#E53935', is_builtin: 1, created_at: now },
+    { id: 'skill-policy', name: '政策分析', description: '分析党的方针政策与时政要点', system_prompt: '你是党建政策研究专家。请深入分析党的各项方针政策，解读其背景、意义和实施要点。引用权威文件，结合基层实践案例进行说明。', icon: 'FileText', color: '#1565C0', is_builtin: 1, created_at: now },
+    { id: 'skill-news', name: '新闻稿撰写', description: '撰写党建相关工作新闻稿', system_prompt: '你是党建新闻稿撰写专家。请按照"标题—导语—主体—结尾"的规范结构撰写党建工作新闻稿。语言生动凝练、正面积极，突出工作亮点和实际成效。', icon: 'Edit', color: '#2E7D32', is_builtin: 1, created_at: now },
+    { id: 'skill-history', name: '党史学习', description: '学习党的历史与优良传统', system_prompt: '你是党史教育专家。请以党的重大历史事件为主线，用通俗易懂又不失严肃的语言讲述党史，引导党员从历史中汲取智慧和力量。', icon: 'Clock', color: '#E65100', is_builtin: 1, created_at: now },
+    { id: 'skill-organization', name: '组织生活', description: '指导三会一课等组织生活制度', system_prompt: '你是基层党组织建设专家。请详细解答关于"三会一课"、组织生活会、民主评议党员等制度的规范要求，提供可操作的具体方案和模板。', icon: 'Users', color: '#6A1B9A', is_builtin: 1, created_at: now },
+    { id: 'skill-report', name: '工作报告', description: '撰写党建工作汇报与总结', system_prompt: '你是党务公文写作专家。请按照规范的公文格式撰写工作总结、思想汇报、述职报告等。结构完整、数据翔实、语言庄重。', icon: 'File', color: '#00838F', is_builtin: 1, created_at: now },
+  ];
+
+  const insert = db.prepare('INSERT INTO skills (id,name,description,system_prompt,icon,color,is_builtin,created_at) VALUES (?,?,?,?,?,?,?,?)');
+  db.transaction(() => { for (const s of presets) insert.run(s.id, s.name, s.description, s.system_prompt, s.icon, s.color, s.is_builtin, s.created_at); })();
+  console.log('[DB] 已初始化 6 个预设技能模板');
 }
 
 // 清空所有数据

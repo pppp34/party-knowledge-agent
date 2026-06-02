@@ -252,6 +252,53 @@ app.use("/api/admin", adminRouter);
 app.use("/api/knowledge", knowledgeRouter);
 app.use("/api/ima", imaKnowledgeRouter);
 
+// ========== 技能模板 API ==========
+
+app.get("/api/skills", (_req, res) => {
+  res.json({ skills: db.getAllSkills().map(s => ({ id: s.id, name: s.name, description: s.description, system_prompt: s.system_prompt, icon: s.icon, color: s.color, isBuiltin: !!s.is_builtin })) });
+});
+
+app.get("/api/skills/:id", (req, res) => {
+  const skill = db.getSkill(req.params.id);
+  if (!skill) return res.status(404).json({ error: '技能不存在' });
+  res.json({ skill: { id: skill.id, name: skill.name, description: skill.description, system_prompt: skill.system_prompt, icon: skill.icon, color: skill.color, isBuiltin: !!skill.is_builtin } });
+});
+
+// ========== 管理后台：技能管理 API ==========
+
+app.post("/api/admin/skills", authMiddleware, adminMiddleware, (req: AuthenticatedRequest, res) => {
+  try {
+    const { name, description, systemPrompt, icon, color } = req.body;
+    if (!name || !systemPrompt) return res.status(400).json({ error: '名称和 System Prompt 不能为空' });
+    const skill: db.DbSkill = {
+      id: 'skill-' + uuidv4().slice(0, 8),
+      name, description: description || '', system_prompt: systemPrompt,
+      icon: icon || 'Bot', color: color || '#0052d9', is_builtin: 0, created_at: new Date().toISOString()
+    };
+    db.createSkill(skill);
+    res.json({ success: true, skill });
+  } catch(e:any) { res.status(500).json({ error: e.message }); }
+});
+
+app.put("/api/admin/skills/:id", authMiddleware, adminMiddleware, (req: AuthenticatedRequest, res) => {
+  try {
+    const { name, description, systemPrompt, icon, color } = req.body;
+    const ok = db.updateSkill(req.params.id, {
+      name, description, system_prompt: systemPrompt, icon, color
+    });
+    if (!ok) return res.status(404).json({ error: '技能不存在或为内置技能不可修改' });
+    res.json({ success: true });
+  } catch(e:any) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete("/api/admin/skills/:id", authMiddleware, adminMiddleware, (req: AuthenticatedRequest, res) => {
+  try {
+    const ok = db.deleteSkill(req.params.id);
+    if (!ok) return res.status(404).json({ error: '内置技能不可删除' });
+    res.json({ success: true });
+  } catch(e:any) { res.status(500).json({ error: e.message }); }
+});
+
 // ============= CodeBuddy SDK 配置 =============
 
 // 登录方式类型
@@ -557,7 +604,7 @@ app.post("/api/permission-response", (req, res) => {
 
 // 发送消息并获取流式响应
 app.post("/api/chat", async (req, res) => {
-  const { sessionId, message, model, systemPrompt, cwd, permissionMode, userId } = req.body;
+  const { sessionId, message, model, systemPrompt, cwd, permissionMode, userId, skillId } = req.body;
   
   console.log(`\n[Chat] ========== 新请求 ==========`);
   console.log(`[Chat] SessionId: ${sessionId}`);
@@ -630,8 +677,15 @@ app.post("/api/chat", async (req, res) => {
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
 
-  // 使用党建知识库 System Prompt
+  // 使用党建知识库 System Prompt，若指定技能则使用技能 prompt
   let effectiveSystemPrompt = systemPrompt || partySystemPrompt;
+  if (skillId) {
+    const skill = db.getSkill(skillId);
+    if (skill) {
+      effectiveSystemPrompt = skill.system_prompt;
+      console.log(`[Chat] 使用技能: ${skill.name}`);
+    }
+  }
 
   // ===== 知识库检索 =====
   try {
@@ -867,6 +921,7 @@ if (fs.existsSync(distPath)) {
 app.listen(PORT, async () => {
   // 初始化默认管理员
   await initDefaultAdmin();
+  db.initPresetSkills();
 
   // 显示已配置的国产模型
   const chineseModels = getAvailableChineseModels();

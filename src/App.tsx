@@ -23,6 +23,7 @@ import { AdminConversations } from './pages/AdminConversations';
 import { AdminLearning } from './pages/AdminLearning';
 import { AdminUsers } from './pages/AdminUsers';
 import { AdminKnowledge } from './pages/AdminKnowledge';
+import { AdminSkills } from './pages/AdminSkills';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 // 认证守卫组件
@@ -54,6 +55,7 @@ function MainApp() {
   const isSettingsPage = location.pathname === '/settings';
   const { user, token } = useAuth();
   const { startSession, endSession } = useLearning();
+  const [selectedSkill, setSelectedSkill] = useState<string>('');
   
   // Hooks
   const { theme, toggleTheme } = useTheme();
@@ -87,6 +89,7 @@ function MainApp() {
     currentSession,
     currentSessionId,
     selectedModel,
+    selectedSkill,
     getAgent,
     addSession,
     updateSession,
@@ -191,6 +194,8 @@ function MainApp() {
           currentSession={currentSession}
           currentAgent={currentAgent}
           models={models}
+          selectedSkill={selectedSkill}
+          onSelectSkill={setSelectedSkill}
           onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
           onToggleTheme={toggleTheme}
           onRefreshModels={fetchModels}
@@ -244,6 +249,7 @@ function AppRoutes() {
       <Route path="/admin/learning" element={<AdminGuard><ErrorBoundary><AdminLearning /></ErrorBoundary></AdminGuard>} />
       <Route path="/admin/users" element={<AdminGuard><ErrorBoundary><AdminUsers /></ErrorBoundary></AdminGuard>} />
       <Route path="/admin/knowledge" element={<AdminGuard><ErrorBoundary><AdminKnowledge /></ErrorBoundary></AdminGuard>} />
+      <Route path="/admin/skills" element={<AdminGuard><ErrorBoundary><AdminSkills /></ErrorBoundary></AdminGuard>} />
       <Route path="/" element={<AuthGuard><MainApp /></AuthGuard>} />
       <Route path="/chat/:sessionId" element={<AuthGuard><MainApp /></AuthGuard>} />
       <Route path="/settings" element={<AuthGuard><MainApp /></AuthGuard>} />

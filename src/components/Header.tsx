@@ -11,6 +11,7 @@ import { APP_CONFIG } from '../config';
 import { Model, Session, Agent, Theme } from '../types';
 import { ICON_MAP } from '../utils/iconMap';
 import { UserMenu } from './UserMenu';
+import { SkillSelect } from './SkillSelect';
 
 interface HeaderProps {
   isSettingsPage: boolean;
@@ -19,6 +20,8 @@ interface HeaderProps {
   currentSession: Session | undefined;
   currentAgent: Agent | undefined;
   models: Model[];
+  selectedSkill: string;
+  onSelectSkill: (skillId: string) => void;
   onToggleSidebar: () => void;
   onToggleTheme: () => void;
   onRefreshModels: () => void;
@@ -31,6 +34,8 @@ export function Header({
   currentSession,
   currentAgent,
   models,
+  selectedSkill,
+  onSelectSkill,
   onToggleSidebar,
   onToggleTheme,
   onRefreshModels,
@@ -82,6 +87,9 @@ export function Header({
         )}
       </div>
       <div className="flex items-center gap-2">
+        {!isSettingsPage && (
+          <SkillSelect value={selectedSkill} onChange={onSelectSkill} />
+        )}
         <Tooltip content={theme === 'light' ? '切换到深色模式' : '切换到浅色模式'}>
           <Button
             variant="outline"
